@@ -1,36 +1,55 @@
 import { test, expect } from '@playwright/test';
+import { LoginPage } from '../pages/login';
 
-test('successful login', async ({ page }) => {
-  await page.goto('https://www.saucedemo.com');
+test.describe('Login Tests', () => {
+  let loginPage: LoginPage;
 
-  // fill in the username field
-  await page.getByPlaceholder('Username').fill('standard_user');
+  test.beforeEach(async ({ page }) => {
+    loginPage = new LoginPage(page);
+    await loginPage.gotoLoginPage();
+  });
 
-  // fill in the password field
-  await page.getByPlaceholder('Password').fill('secret_sauce');
+  test('successful login', async ({ page }) => {
+    await loginPage.login('standard_user', 'secret_sauce');
 
-  // click the login button
-  await page.getByRole('button', { name: 'Login' }).click();
+    await expect(page).toHaveURL(
+      'https://www.saucedemo.com/inventory.html'
+    );
+  });
 
-  // verify the products page is displayed
-  await expect(page).toHaveURL(/inventory/);
-});
-test('login fails with incorrect password', async ({ page }) => {
-  await page.goto('https://www.saucedemo.com');
+  test('login fails with incorrect password', async ({ page }) => {
+    await loginPage.login('standard_user', 'wrong_password');
 
-  // fill in the username field
-  await page.getByPlaceholder('Username').fill('standard_user');
+    await expect(loginPage.error_message).toBeVisible();
+    await expect(loginPage.error_message).toContainText(
+      'Username and password do not match'
+    );
 
-  // fill in the password field
-  await page.getByPlaceholder('Password').fill('wrong_password');
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+  });
+  test('login fails with incorrect username', async ({ page }) => {
+    await loginPage.login('wrong_user', 'secret_sauce');
 
-  // click the login button
-  await page.getByRole('button', { name: 'Login' }).click();
+    await expect(loginPage.error_message).toBeVisible();
+    await expect(loginPage.error_message).toContainText(
+      'Username and password do not match'
+    );
 
-  // verify the error message is displayed
-  const error = page.locator('[data-test="error"]');
-  await expect(error).toBeVisible();
-  await expect(error).toContainText('Username and password do not match');
+    await expect(page).toHaveURL('https://www.saucedemo.com/');
+  });
+  test('successful logout', async ({ page }) => {
+  const loginPage = new LoginPage(page);
+
+  await loginPage.gotoLoginPage();
+  await loginPage.login('standard_user', 'secret_sauce');
+
+  await expect(page).toHaveURL(
+    'https://www.saucedemo.com/inventory.html'
+  );
+
+  await loginPage.logout();
 
   await expect(page).toHaveURL('https://www.saucedemo.com/');
+  await expect(loginPage.username_textbox).toBeVisible();
+});
 });
